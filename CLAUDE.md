@@ -105,3 +105,52 @@ Ruff rules enabled: E, F, I, B, UP (see pyproject.toml)
 - `jsonl` is an alias for `ndjson`
 - Output to stdout when `-o` is omitted or set to `-`
 - Binary output (Parquet) uses `sys.stdout.buffer`
+
+## Command Module Pattern
+
+Commands use a DTO (Data Transfer Object) pattern with Input/Output dataclasses:
+
+```
+src/parquet_lf/command/
+  __init__.py           # Empty, no re-exports
+  info.py               # InfoInput, InfoOutput, execute_info()
+  to_parquet_csv.py     # ToParquetCsvInput, ToParquetCsvOutput, execute_to_parquet_csv()
+  from_parquet_csv.py   # etc.
+```
+
+### Structure for New Commands
+
+```python
+from dataclasses import dataclass
+from pathlib import Path
+
+@dataclass
+class MyCommandInput:
+    input_file: Path
+    option: str | None = None
+
+@dataclass
+class MyCommandOutput:
+    result: str
+    # Add fields as needed
+
+def execute_my_command(input_data: MyCommandInput) -> MyCommandOutput:
+    # Business logic here, no CLI concerns
+    return MyCommandOutput(result="...")
+```
+
+### Benefits
+
+- CLI layer (`cli.py`) handles parsing, logging, error handling
+- Command modules contain pure business logic
+- DTOs make testing easier (construct Input, assert on Output)
+- Clear separation of concerns
+
+## Demo Data
+
+Demo files are in `examples/` directory:
+- `examples/sample.parquet`
+- `examples/sample.csv`
+- `examples/sample.ndjson`
+
+Regenerate with: `uv run python scripts/generate_examples.py`

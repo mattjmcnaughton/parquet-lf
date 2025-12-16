@@ -53,12 +53,28 @@ parquet-lf to-parquet csv input.csv > output.parquet
 
 Note: Logs are written to stderr, so they won't interfere with piped data.
 
+### Inspect Files
+
+Use the `info` command to view file metadata and schema without loading the entire dataset:
+
+```bash
+# Show file info (schema, row count, size)
+parquet-lf info examples/sample.parquet
+
+# Show file info with preview of first N rows
+parquet-lf info --head 5 examples/sample.parquet
+parquet-lf info -n 5 examples/sample.csv
+```
+
+The `info` command supports all formats (Parquet, CSV, NDJSON) and auto-detects the format from the file extension.
+
 ### Help
 
 ```bash
 parquet-lf --help
 parquet-lf to-parquet --help
 parquet-lf from-parquet --help
+parquet-lf info --help
 ```
 
 ## Supported Formats
@@ -87,6 +103,16 @@ alice,10
 bob,20
 charlie,30
 ```
+
+## Example Files
+
+The `examples/` directory contains sample data files for experimenting with the CLI:
+
+- `examples/sample.parquet` - Parquet format
+- `examples/sample.csv` - CSV format
+- `examples/sample.ndjson` - NDJSON format
+
+These files contain the same 5-row dataset with columns: id, name, age, city, score.
 
 ## Development
 
