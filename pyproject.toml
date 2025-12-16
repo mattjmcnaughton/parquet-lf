@@ -23,6 +23,7 @@ classifiers = [
 dependencies = [
     "typer>=0.17.4",
     "structlog>=25.4.0",
+    "polars>=1.36.1",
 ]
 
 [project.scripts]
