@@ -1,6 +1,6 @@
 [project]
 name = "parquet-lf"
-version = "0.1.0"
+version = "1.0.0"
 description = "A lingua franca utility for converting between data formats (JSON, CSV) and Parquet."
 readme = "README.md"
 license = "MIT"
