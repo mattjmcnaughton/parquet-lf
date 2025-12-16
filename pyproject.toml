@@ -1,0 +1,64 @@
+[project]
+name = "parquet-lf"
+version = "0.1.0"
+description = "A lingua franca utility for converting between data formats (JSON, CSV) and Parquet."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.13"
+authors = [
+    { name = "Matt McNaughton" }
+]
+keywords = ["parquet", "json", "csv", "data", "conversion", "cli"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: File Formats",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "typer>=0.17.4",
+    "structlog>=25.4.0",
+]
+
+[project.scripts]
+parquet-lf = "parquet_lf.main:main"
+
+[project.urls]
+Homepage = "https://github.com/mattjmcnaughton/parquet-lf"
+Repository = "https://github.com/mattjmcnaughton/parquet-lf"
+Issues = "https://github.com/mattjmcnaughton/parquet-lf/issues"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+    "hypothesis>=6.139.2",
+    "ruff>=0.12.9",
+    "ty>=0.0.1a19",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/parquet_lf"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
