@@ -8,10 +8,11 @@ import structlog
 import typer
 
 from parquet_lf import __version__
-from parquet_lf.converters.csv import csv_to_parquet as convert_csv_to_parquet
-from parquet_lf.converters.csv import parquet_to_csv as convert_parquet_to_csv
-from parquet_lf.converters.ndjson import ndjson_to_parquet as convert_ndjson_to_parquet
-from parquet_lf.converters.ndjson import parquet_to_ndjson as convert_parquet_to_ndjson
+from parquet_lf.command.from_parquet_csv import FromParquetCsvInput, execute_from_parquet_csv
+from parquet_lf.command.from_parquet_ndjson import FromParquetNdjsonInput, execute_from_parquet_ndjson
+from parquet_lf.command.info import InfoInput, execute_info
+from parquet_lf.command.to_parquet_csv import ToParquetCsvInput, execute_to_parquet_csv
+from parquet_lf.command.to_parquet_ndjson import ToParquetNdjsonInput, execute_to_parquet_ndjson
 
 # Configure structlog for CLI usage
 structlog.configure(
@@ -76,11 +77,12 @@ def main_callback(
 # --- to-parquet commands ---
 
 
-def _handle_ndjson_to_parquet(input_file: Path, output: Path | None) -> None:
+def _handle_to_parquet_ndjson(input_file: Path, output: Path | None) -> None:
     """Shared handler for ndjson/jsonl to parquet conversion."""
     logger.info("conversion_start", direction="to_parquet", format="ndjson", input_file=str(input_file))
     try:
-        convert_ndjson_to_parquet(input_file, output)
+        input_dto = ToParquetNdjsonInput(input_file=input_file, output=output)
+        execute_to_parquet_ndjson(input_dto)
         logger.info("conversion_complete", direction="to_parquet", format="ndjson", input_file=str(input_file))
     except FileNotFoundError as e:
         typer.echo(f"Error: {e}", err=True)
@@ -103,7 +105,7 @@ def ndjson_to_parquet(
     ] = None,
 ) -> None:
     """Convert an NDJSON file to Parquet format."""
-    _handle_ndjson_to_parquet(input_file, output)
+    _handle_to_parquet_ndjson(input_file, output)
 
 
 @to_parquet_app.command("jsonl")
@@ -118,7 +120,7 @@ def jsonl_to_parquet(
     ] = None,
 ) -> None:
     """Convert a JSONL file to Parquet format (alias for ndjson)."""
-    _handle_ndjson_to_parquet(input_file, output)
+    _handle_to_parquet_ndjson(input_file, output)
 
 
 @to_parquet_app.command("csv")
@@ -135,7 +137,8 @@ def csv_to_parquet(
     """Convert a CSV file to Parquet format."""
     logger.info("conversion_start", direction="to_parquet", format="csv", input_file=str(input_file))
     try:
-        convert_csv_to_parquet(input_file, output)
+        input_dto = ToParquetCsvInput(input_file=input_file, output=output)
+        execute_to_parquet_csv(input_dto)
         logger.info("conversion_complete", direction="to_parquet", format="csv", input_file=str(input_file))
     except FileNotFoundError as e:
         typer.echo(f"Error: {e}", err=True)
@@ -149,11 +152,12 @@ def csv_to_parquet(
 # --- from-parquet commands ---
 
 
-def _handle_parquet_to_ndjson(input_file: Path, output: Path | None) -> None:
+def _handle_from_parquet_ndjson(input_file: Path, output: Path | None) -> None:
     """Shared handler for parquet to ndjson/jsonl conversion."""
     logger.info("conversion_start", direction="from_parquet", format="ndjson", input_file=str(input_file))
     try:
-        convert_parquet_to_ndjson(input_file, output)
+        input_dto = FromParquetNdjsonInput(input_file=input_file, output=output)
+        execute_from_parquet_ndjson(input_dto)
         logger.info("conversion_complete", direction="from_parquet", format="ndjson", input_file=str(input_file))
     except FileNotFoundError as e:
         typer.echo(f"Error: {e}", err=True)
@@ -176,7 +180,7 @@ def parquet_to_ndjson(
     ] = None,
 ) -> None:
     """Convert a Parquet file to NDJSON format."""
-    _handle_parquet_to_ndjson(input_file, output)
+    _handle_from_parquet_ndjson(input_file, output)
 
 
 @from_parquet_app.command("jsonl")
@@ -191,7 +195,7 @@ def parquet_to_jsonl(
     ] = None,
 ) -> None:
     """Convert a Parquet file to JSONL format (alias for ndjson)."""
-    _handle_parquet_to_ndjson(input_file, output)
+    _handle_from_parquet_ndjson(input_file, output)
 
 
 @from_parquet_app.command("csv")
@@ -208,7 +212,8 @@ def parquet_to_csv(
     """Convert a Parquet file to CSV format."""
     logger.info("conversion_start", direction="from_parquet", format="csv", input_file=str(input_file))
     try:
-        convert_parquet_to_csv(input_file, output)
+        input_dto = FromParquetCsvInput(input_file=input_file, output=output)
+        execute_from_parquet_csv(input_dto)
         logger.info("conversion_complete", direction="from_parquet", format="csv", input_file=str(input_file))
     except FileNotFoundError as e:
         typer.echo(f"Error: {e}", err=True)
@@ -216,4 +221,37 @@ def parquet_to_csv(
     except Exception as e:
         logger.error("conversion_failed", direction="from_parquet", format="csv", error=str(e))
         typer.echo(f"Error: Failed to convert Parquet to CSV: {e}", err=True)
+        raise typer.Exit(code=1) from None
+
+
+# --- info command ---
+
+
+@app.command("info")
+def info_command(
+    input_file: Annotated[
+        Path,
+        typer.Argument(help="Path to the file to inspect."),
+    ],
+    head: Annotated[
+        int | None,
+        typer.Option("--head", "-n", help="Show first N rows of the file."),
+    ] = None,
+) -> None:
+    """Display file information and optionally preview rows."""
+    logger.info("info_start", input_file=str(input_file))
+    try:
+        input_dto = InfoInput(input_file=input_file, head=head)
+        output_dto = execute_info(input_dto)
+        typer.echo(output_dto.formatted_output)
+        logger.info("info_complete", input_file=str(input_file))
+    except FileNotFoundError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1) from None
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1) from None
+    except Exception as e:
+        logger.error("info_failed", input_file=str(input_file), error=str(e))
+        typer.echo(f"Error: Failed to get file info: {e}", err=True)
         raise typer.Exit(code=1) from None

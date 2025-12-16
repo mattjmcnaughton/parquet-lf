@@ -1,5 +1,6 @@
 """Fixtures for end-to-end CLI tests."""
 
+import os
 import subprocess
 from typing import NamedTuple
 
@@ -33,11 +34,14 @@ def run_cli():
         Returns:
             CLIResult with exit_code, stdout, and stderr.
         """
+        env = os.environ.copy()
+        env["NO_COLOR"] = "1"  # Disable ANSI escape codes for consistent output
         result = subprocess.run(
             ["uv", "run", "parquet-lf", *args],
             capture_output=True,
             text=True,
             input=input_text,
+            env=env,
         )
         return CLIResult(
             exit_code=result.returncode,

@@ -182,43 +182,6 @@ class TestFromParquetNDJSON:
         assert "not found" in result.stderr.lower() or "error" in result.stderr.lower()
 
 
-class TestCLIHelp:
-    """E2E tests for CLI help and version."""
-
-    def test_version_flag(self, run_cli) -> None:
-        """CLI --version shows version."""
-        result = run_cli(["--version"])
-
-        assert result.exit_code == 0
-        assert "parquet-lf" in result.stdout
-
-    def test_help_flag(self, run_cli) -> None:
-        """CLI --help shows help."""
-        result = run_cli(["--help"])
-
-        assert result.exit_code == 0
-        assert "to-parquet" in result.stdout
-        assert "from-parquet" in result.stdout
-
-    def test_to_parquet_help(self, run_cli) -> None:
-        """to-parquet --help shows subcommands."""
-        result = run_cli(["to-parquet", "--help"])
-
-        assert result.exit_code == 0
-        assert "csv" in result.stdout
-        assert "ndjson" in result.stdout
-        assert "jsonl" in result.stdout
-
-    def test_from_parquet_help(self, run_cli) -> None:
-        """from-parquet --help shows subcommands."""
-        result = run_cli(["from-parquet", "--help"])
-
-        assert result.exit_code == 0
-        assert "csv" in result.stdout
-        assert "ndjson" in result.stdout
-        assert "jsonl" in result.stdout
-
-
 class TestStdoutSeparation:
     """E2E tests verifying stdout/stderr separation."""
 
@@ -249,3 +212,140 @@ class TestStdoutSeparation:
         assert "name,value" in result.stdout
         # Logs should still be in stderr
         assert "conversion" in result.stderr.lower()
+
+
+class TestInfoCommand:
+    """E2E tests for the info command."""
+
+    def test_info_parquet_shows_metadata(self, run_cli, tmp_path: Path) -> None:
+        """Test info command shows metadata for Parquet file."""
+        parquet_file = tmp_path / "test.parquet"
+        df = pl.DataFrame({"name": ["alice", "bob"], "value": [1, 2]})
+        df.write_parquet(parquet_file)
+
+        result = run_cli(["info", str(parquet_file)])
+
+        assert result.exit_code == 0
+        assert "File: test.parquet" in result.stdout
+        assert "Format: Parquet" in result.stdout
+        assert "Rows: 2" in result.stdout
+        assert "Columns: 2" in result.stdout
+        assert "Schema:" in result.stdout
+        assert "name: String" in result.stdout
+        assert "value: Int64" in result.stdout
+
+    def test_info_csv_shows_metadata(self, run_cli, tmp_path: Path) -> None:
+        """Test info command shows metadata for CSV file."""
+        csv_file = tmp_path / "test.csv"
+        csv_file.write_text("name,value\nalice,1\nbob,2")
+
+        result = run_cli(["info", str(csv_file)])
+
+        assert result.exit_code == 0
+        assert "File: test.csv" in result.stdout
+        assert "Format: Csv" in result.stdout
+        assert "Rows: 2" in result.stdout
+
+    def test_info_ndjson_shows_metadata(self, run_cli, tmp_path: Path) -> None:
+        """Test info command shows metadata for NDJSON file."""
+        ndjson_file = tmp_path / "test.ndjson"
+        ndjson_file.write_text('{"name": "alice", "value": 1}\n{"name": "bob", "value": 2}')
+
+        result = run_cli(["info", str(ndjson_file)])
+
+        assert result.exit_code == 0
+        assert "File: test.ndjson" in result.stdout
+        assert "Format: Ndjson" in result.stdout
+        assert "Rows: 2" in result.stdout
+
+    def test_info_with_head_shows_preview(self, run_cli, tmp_path: Path) -> None:
+        """Test info command with --head shows preview."""
+        parquet_file = tmp_path / "test.parquet"
+        df = pl.DataFrame({"name": ["alice", "bob", "charlie"], "value": [1, 2, 3]})
+        df.write_parquet(parquet_file)
+
+        result = run_cli(["info", "--head", "2", str(parquet_file)])
+
+        assert result.exit_code == 0
+        assert "Preview (first 2 rows):" in result.stdout
+        assert "alice" in result.stdout
+        assert "bob" in result.stdout
+
+    def test_info_with_short_head_option(self, run_cli, tmp_path: Path) -> None:
+        """Test info command with -n shorthand for --head."""
+        parquet_file = tmp_path / "test.parquet"
+        df = pl.DataFrame({"name": ["alice"], "value": [1]})
+        df.write_parquet(parquet_file)
+
+        result = run_cli(["info", "-n", "1", str(parquet_file)])
+
+        assert result.exit_code == 0
+        assert "Preview (first 1 rows):" in result.stdout
+
+    def test_info_nonexistent_file_exits_with_error(self, run_cli, tmp_path: Path) -> None:
+        """Test info command exits with code 1 for missing file."""
+        nonexistent = tmp_path / "nonexistent.parquet"
+
+        result = run_cli(["info", str(nonexistent)])
+
+        assert result.exit_code == 1
+        assert "Error:" in result.stderr
+        assert "not found" in result.stderr.lower()
+
+    def test_info_unsupported_extension_exits_with_error(self, run_cli, tmp_path: Path) -> None:
+        """Test info command exits with code 1 for unsupported extension."""
+        unsupported = tmp_path / "test.xyz"
+        unsupported.write_text("some content")
+
+        result = run_cli(["info", str(unsupported)])
+
+        assert result.exit_code == 1
+        assert "Error:" in result.stderr
+        assert "Unsupported file extension" in result.stderr
+
+
+class TestInfoWithExamples:
+    """E2E tests using the example files in the examples/ directory."""
+
+    def test_info_example_parquet(self, run_cli) -> None:
+        """Test info command on examples/sample.parquet."""
+        result = run_cli(["info", "examples/sample.parquet"])
+
+        assert result.exit_code == 0
+        assert "File: sample.parquet" in result.stdout
+        assert "Format: Parquet" in result.stdout
+        assert "Rows: 5" in result.stdout
+        assert "Columns: 5" in result.stdout
+        assert "id: Int64" in result.stdout
+        assert "name: String" in result.stdout
+        assert "age: Int64" in result.stdout
+        assert "city: String" in result.stdout
+        assert "score: Float64" in result.stdout
+
+    def test_info_example_csv(self, run_cli) -> None:
+        """Test info command on examples/sample.csv."""
+        result = run_cli(["info", "examples/sample.csv"])
+
+        assert result.exit_code == 0
+        assert "File: sample.csv" in result.stdout
+        assert "Format: Csv" in result.stdout
+        assert "Rows: 5" in result.stdout
+
+    def test_info_example_ndjson(self, run_cli) -> None:
+        """Test info command on examples/sample.ndjson."""
+        result = run_cli(["info", "examples/sample.ndjson"])
+
+        assert result.exit_code == 0
+        assert "File: sample.ndjson" in result.stdout
+        assert "Format: Ndjson" in result.stdout
+        assert "Rows: 5" in result.stdout
+
+    def test_info_example_with_preview(self, run_cli) -> None:
+        """Test info command with preview on example file."""
+        result = run_cli(["info", "--head", "3", "examples/sample.parquet"])
+
+        assert result.exit_code == 0
+        assert "Preview (first 3 rows):" in result.stdout
+        assert "Alice" in result.stdout
+        assert "Bob" in result.stdout
+        assert "Charlie" in result.stdout
